@@ -7,15 +7,10 @@ sudo apt update && sudo apt upgrade -y
 
 sudo apt install nodejs npm -y
 
-#verify version
-
-node -v
-
-npm -v
-
-
 cd townhall
 npm install
+npm install redis dotenv
+
 node wss.js to start the server
 login with browser to https://127.0.0.1:3000/speaker.html and click start stream
 login with browser to https://127.0.0.1:3000/ and see the streaming 
