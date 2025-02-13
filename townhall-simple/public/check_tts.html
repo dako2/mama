@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPhone TTS in Browser</title>
+</head>
+<body>
+    <h1>Text-to-Speech in iPhone Browser</h1>
+    <textarea id="text" rows="4" cols="50">Hello, this is a test of iPhone TTS in a web browser.</textarea><br>
+    <button onclick="speak()">Speak</button>
+
+    <script>
+        function speak() {
+            let text = document.getElementById("text").value;
+            let utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = "en-US"; // Change language if needed
+            utterance.rate = 1; // Adjust speech speed (0.5 - 2)
+            utterance.pitch = 1; // Adjust pitch (0 - 2)
+            speechSynthesis.speak(utterance);
+        }
+    </script>
+</body>
+</html>

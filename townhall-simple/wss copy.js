@@ -17,7 +17,7 @@ const wss = new WebSocket.Server({ server });
 const clients = new Set();
 let transcriptionStore = { text: '' };
 let lastTranslationText = "";
-const TRANSLATION_INTERVAL = 3000; // 1 second interval to avoid redundant translations
+const TRANSLATION_INTERVAL = 1000; // 1 second interval to avoid redundant translations
 
 function broadcast(message) {
   for (const client of clients) {
@@ -33,7 +33,7 @@ function logToClients(message) {
 }
 
 wss.on("connection", (ws) => {
-  logToClients("🔗 Client connected");
+  console.log("🔗 Client connected");
   clients.add(ws);
 
   ws.audioFormat = null;
@@ -43,9 +43,6 @@ wss.on("connection", (ws) => {
   const WRITE_THRESHOLD = 16000;
   const FLUSH_TIMEOUT_MS = 100;
   let flushTimer = null;
-
-  let lastTranscriptionText = "";
-  let lastTranslationTime = Date.now();
 
   function flushAudioBuffer() {
     if (ffmpeg && audioBuffer.length > 0) {
@@ -62,59 +59,43 @@ wss.on("connection", (ws) => {
     pythonProcess.stdout.on("data", (data) => {
       const text = data.toString().trim();
       if (text) {
-        logToClients(`📝 Transcription: ${text}`);
+        console.log(`📝 Transcription: ${text}`);
         broadcast({ type: "transcription", text });
-
-        // Trigger translation when new words are detected or after 1 second
-        if (shouldTranslate(text)) {
-          startTranslation(text, "Chinese");
-        }
+        startTranslation(text, "Chinese");
       }
     });
 
     pythonProcess.stderr.on("data", (data) => {
-      logToClients(`Error: Python transcription error: ${data.toString()}`);
+      console.error(`Python transcription error: ${data.toString()}`);
     });
   }
 
-  function shouldTranslate(newText) {
-    const now = Date.now();
-    const newWords = newText.split(" ").length - lastTranscriptionText.split(" ").length;
-
-    if (newWords >= 2 || now - lastTranslationTime >= TRANSLATION_INTERVAL) {
-      lastTranscriptionText = newText;
-      lastTranslationTime = now;
-      return true;
-    }
-    return false;
-  }
-
   function startTranslation(text, targetLanguage) {
-    logToClients(`🌍 Starting translation: ${text} -> ${targetLanguage}`);
+    console.log(`🌍 Starting translation: ${text} -> ${targetLanguage}`);
     const translationProcess = spawn("python3", ["-u", "translate_script.py", text, targetLanguage]);
 
     translationProcess.stdout.on("data", (data) => {
       const translatedText = data.toString().trim();
       if (translatedText) {
-        logToClients(`🗣️ Translation: ${translatedText}`);
+        console.log(`🗣️ Translation: ${translatedText}`);
         broadcast({ type: "translation", text: translatedText, language: targetLanguage });
       }
     });
 
     translationProcess.stderr.on("data", (data) => {
-      logToClients(`Error: Python translation error: ${data.toString()}`);
+      console.error(`Python translation error: ${data.toString()}`);
     });
   }
 
   function startFFmpeg(format) {
     if (ffmpeg) {
-      logToClients("🔴 Stopping existing FFmpeg process...");
+      console.log("🔴 Stopping existing FFmpeg process...");
       ffmpeg.stdin.end();
       ffmpeg.kill();
     }
 
     if (format === "pcm") {
-      logToClients("🎙️ Starting FFmpeg for PCM...");
+      console.log("🎙️ Starting FFmpeg for PCM...");
       ffmpeg = spawn("ffmpeg", [
         "-f", "s16le",
         "-ar", "44100",
@@ -127,7 +108,7 @@ wss.on("connection", (ws) => {
         "pipe:1",
       ]);
     } else if (format === "webm") {
-      logToClients("🎙️ Starting FFmpeg for WebM...");
+      console.log("🎙️ Starting FFmpeg for WebM...");
       ffmpeg = spawn("ffmpeg", [
         "-i", "pipe:0",
         "-f", "wav",
@@ -137,17 +118,17 @@ wss.on("connection", (ws) => {
         "pipe:1",
       ]);
     } else {
-      logToClients("Error: ❌ Unsupported format:", format);
+      console.error("❌ Unsupported format:", format);
       ws.send(JSON.stringify({ error: "Unsupported format" }));
       return;
     }
 
     ffmpeg.stderr.on("data", (data) => {
-      logToClients(`Error: FFmpeg stderr: ${data.toString()}`);
+      console.error(`FFmpeg stderr: ${data.toString()}`);
     });
 
     ffmpeg.on("exit", (code, signal) => {
-      logToClients(`FFmpeg exited with code ${code}, signal ${signal}`);
+      console.log(`FFmpeg exited with code ${code}, signal ${signal}`);
     });
 
     startTranscription();
@@ -160,12 +141,12 @@ wss.on("connection", (ws) => {
           const msg = JSON.parse(message.toString("utf8"));
           if (msg.type === "format") {
             ws.audioFormat = msg.format;
-            logToClients(`🎵 Audio format received: ${ws.audioFormat}`);
+            console.log(`🎵 Audio format received: ${ws.audioFormat}`);
             startFFmpeg(ws.audioFormat);  // Restart FFmpeg with correct format
             return;
           }
         } catch (err) {
-          logToClients("Error: ❌ Error parsing JSON:", err);
+          console.error("❌ Error parsing JSON:", err);
         }
       } else {
         // Append audio to buffer
@@ -187,18 +168,18 @@ wss.on("connection", (ws) => {
         const msg = JSON.parse(message);
         if (msg.type === "format") {
           ws.audioFormat = msg.format;
-          logToClients(`🎵 Audio format received: ${ws.audioFormat}`);
+          console.log(`🎵 Audio format received: ${ws.audioFormat}`);
           startFFmpeg(ws.audioFormat);
           return;
         }
       } catch (err) {
-        logToClients("[Error]❌ Error parsing JSON:", err);
+        console.error("❌ Error parsing JSON:", err);
       }
     }
   });
 
   ws.on("close", () => {
-    logToClients("🔌 Client disconnected");
+    console.log("🔌 Client disconnected");
     clients.delete(ws);
 
     if (ffmpeg) {
