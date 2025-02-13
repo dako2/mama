@@ -23,17 +23,17 @@ class AudioStreamer {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
       if (!AudioStreamer.useFallback()) {
-        console.log("AudioStreamer: Using MediaRecorder mode (WebM).");
+        //console.log("AudioStreamer: Using MediaRecorder mode (WebM).");
         this.mediaRecorder = new MediaRecorder(this.stream, {
           mimeType: "audio/webm;codecs=opus",
         });
         this.mediaRecorder.ondataavailable = (event) => {
           if (event.data.size > 0 && typeof onDataCallback === "function") {
-            console.log(
+            /*console.log(
               "AudioStreamer: MediaRecorder chunk received. Size:",
               event.data.size,
               "bytes"
-            );
+            );*/
             onDataCallback(event.data);
           }
         };
@@ -171,7 +171,7 @@ class WebSocketHandler {
 
   send(data) {
     if (this.websocket && this.websocket.readyState === WebSocket.OPEN && data != null) {
-      console.log("WebSocketHandler: Sending data through WebSocket.");
+      //console.log("WebSocketHandler: Sending data through WebSocket.");
       this.websocket.send(data);
     } else {
       console.warn("WebSocketHandler: WebSocket is not open or data is null. Unable to send data.");
@@ -198,6 +198,37 @@ function updateTranscriptionDisplay() {
   const sortedKeys = Object.keys(transcriptionSegments).sort((a, b) => Number(a) - Number(b));
   const fullTranscription = sortedKeys.map(key => transcriptionSegments[key]).join(" ");
   document.getElementById("transcriptionText").innerText = fullTranscription;
+}
+
+function detectLanguage(text) {
+  if (/[\u4E00-\u9FFF]/.test(text)) {
+    return "zh-CN";  // Chinese Simplified
+  } else if (/[\u3040-\u30FF]/.test(text)) {
+    return "ja-JP";  // Japanese
+  } else if (/[\uAC00-\uD7AF]/.test(text)) {
+    return "ko-KR";  // Korean
+  } else if (/[а-яА-ЯЁё]/.test(text)) {
+    return "ru-RU";  // Russian
+  } else {
+    return "en-US";  // Default to English
+  }
+}
+
+function speakText(text) {
+  if (!window.speechSynthesis) {
+    console.warn("Web Speech API not supported.");
+    return;
+  }
+
+  const lang = detectLanguage(text);
+  console.log(`Detected language: ${lang}`);
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = lang;
+  utterance.rate = 1.0;
+  utterance.pitch = 1.0;
+
+  speechSynthesis.speak(utterance);
 }
 
 (function() {
@@ -273,11 +304,13 @@ function updateTranscriptionDisplay() {
         } else {
           // Fallback if text is not segmented
           transcriptionText.innerHTML = data.text;
+          
           console.log("App: Received transcription:", data.text);
         }
       } else if (data.type === "translation") {
         translationText.innerHTML = data.text;
         console.log("App: Received translation:", data.text);
+        speakText(data.text);
       }
     } catch (error) {
       console.error("App: Error parsing WebSocket message:", error, event.data);
