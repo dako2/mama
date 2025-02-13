@@ -17,3 +17,23 @@ login with browser to https://127.0.0.1:3000/ and see the streaming
 
 
 
+Reload systemd to recognize the new service:
+
+bash
+Copy
+sudo systemctl daemon-reload
+Enable the service to start on boot:
+
+bash
+Copy
+sudo systemctl enable wss.service
+Start the service immediately (optional, to test it now):
+
+bash
+Copy
+sudo systemctl start wss.service
+Check the status of your service:
+
+bash
+Copy
+sudo systemctl status wss.service
